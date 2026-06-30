@@ -972,11 +972,6 @@ bool load_config(char configPath[PATH_MAX], struct config_params *p, struct erro
         p->audio_source = strdup(iniparser_getstring(ini, "input:source", "auto"));
         break;
 #endif
-#ifdef COREAUDIO
-    case INPUT_COREAUDIO:
-        p->audio_source = strdup(iniparser_getstring(ini, "input:source", "auto"));
-        break;
-#endif
     case INPUT_MAX: {
         char supported_methods[255] = "";
         for (int i = 0; i < INPUT_MAX; i++) {
