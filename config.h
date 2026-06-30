@@ -7,10 +7,24 @@
 
 #define MAX_ERROR_LEN 1024
 
+#define MAX_GRADIENT_COUNT 64
+
 #ifdef PORTAUDIO
 #define HAS_PORTAUDIO true
 #else
 #define HAS_PORTAUDIO false
+#endif
+
+#ifdef COREAUDIO
+#define HAS_COREAUDIO true
+#else
+#define HAS_COREAUDIO false
+#endif
+
+#ifdef COREAUDIO_TAP
+#define HAS_COREAUDIO_TAP true
+#else
+#define HAS_COREAUDIO_TAP false
 #endif
 
 #ifdef ALSA
@@ -67,6 +81,7 @@
 enum input_method {
     INPUT_FIFO,
     INPUT_PORTAUDIO,
+    INPUT_COREAUDIO,
     INPUT_PIPEWIRE,
     INPUT_ALSA,
     INPUT_PULSE,
@@ -107,7 +122,7 @@ struct config_params {
         **horizontal_gradient_colors, *data_format, *vertex_shader, *fragment_shader, *theme;
 
     char bar_delim, frame_delim;
-    double monstercat, integral, gravity, ignore, sens, noise_reduction, max_height, sdl_glsl_gain;
+    double monstercat, sens, noise_reduction, max_height, sdl_glsl_gain;
 
     unsigned int lower_cut_off, upper_cut_off;
     double *userEQ;

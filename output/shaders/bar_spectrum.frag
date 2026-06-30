@@ -48,7 +48,7 @@ void main() {
     // draw the bar up to current height
     if (y > fragCoord.y) {
         // make some space between bars basen on settings
-        if (x > (bar + 1) * (bar_size)-bar_spacing) {
+        if (x > (bar + 1) * (bar_size) - bar_spacing) {
             fragColor = vec4(bg_color, 1.0);
         } else {
             if (gradient_count == 0) {

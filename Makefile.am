@@ -62,6 +62,14 @@ if PORTAUDIO
     cava_SOURCES += input/portaudio.c input/portaudio.h
 endif
 
+if COREAUDIO
+    cava_SOURCES += input/coreaudio.c input/coreaudio.h
+endif
+
+if COREAUDIO_TAP
+    cava_SOURCES += input/coreaudio_tap.m input/coreaudio_tap.h
+endif
+
 if PIPEWIRE
     cava_SOURCES += input/pipewire.c input/pipewire.h
 endif
@@ -95,3 +103,8 @@ endif
 if SDL_GLSL
     cava_SOURCES += output/sdl_glsl.c output/sdl_glsl.h
 endif
+
+.PHONY: dev
+
+dev: $(bin_PROGRAMS)
+	./cava

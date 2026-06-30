@@ -1,6 +1,6 @@
-BasedOnStyle: LLVM
+BasedOnStyle : LLVM
 ---
-Language: Cpp
-PointerAlignment: Right
-ColumnLimit: 100
-IndentWidth: 4
+Language         : C
+PointerAlignment : Right
+ColumnLimit      : 100
+IndentWidth      : 4
