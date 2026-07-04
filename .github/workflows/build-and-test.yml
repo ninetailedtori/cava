@@ -1,11 +1,9 @@
 ---
 name: build-and-test
-
-'on':
+on:
   push:
   pull_request:
   workflow_dispatch:
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -16,7 +14,6 @@ jobs:
           source: .
           exclude: ./third_party
           extensions: h,c
-
   build-linux:
     runs-on: ubuntu-latest
     steps:
@@ -66,7 +63,6 @@ jobs:
         run: gcc -o cavacore_test cavacore_test.o cava-cavacore.o -lm -lfftw3
       - name: run cavacore test application
         run: ./cavacore_test
-
   build-macos:
     runs-on: macos-latest
     steps:
@@ -87,7 +83,6 @@ jobs:
         run: make CFLAGS='-Werror'
       - name: run non zero test
         run: ./cava -p example_files/test_configs/non_zero_test > /dev/null
-
   build-windows:
     runs-on: windows-latest
     steps:
@@ -124,7 +119,6 @@ jobs:
         with:
           name: cava-msi
           path: cava_win\cava_win_x64_install.msi
-
   build-mingw:
     runs-on: windows-latest
     strategy:
@@ -140,6 +134,6 @@ jobs:
           msystem: ${{ matrix.msystem }}
           pacboy: cc cmake fftw glew ninja SDL2
       - name: Run cmake build
-        run: |
+        run: |-
           cmake -B bin
           cmake --build bin
