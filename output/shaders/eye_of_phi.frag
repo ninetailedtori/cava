@@ -54,12 +54,19 @@ void main() {
     vec4 m = vec4(0, 0, 0, 0);                 // iMouse;
     m.xy = m.xy * 2.0 / u_resolution.xy - 1.0; // ±1x, ±1y
     if (m.z > 0.0)
-    t += m.y * SCALE; // move time with mouse y
-    float z = (m.z > 0.0) ? pow(1.0 - abs(m.y), sign(m.y)) : 1.0; // zoom (+)
-    float e = (m.z > 0.0) ? pow(1.0 - abs(m.x), -sign(m.x))
-    : 1.0;                   // screen exponent (+)
-    float se = (m.z > 0.0) ? e * -sign(m.y) : 1.0; // spiral exponent
-    vec3 bg = vec3(0);                             // black background
+    {
+        t += m.y * SCALE;                      // move time with mouse y
+    }
+    float z = (m.z > 0.0)
+    ? pow(1.0 - abs(m.y), sign(m.y))
+    : 1.0;                                     // zoom (+)
+    float e = (m.z > 0.0)
+    ? pow(1.0 - abs(m.x), -sign(m.x))
+    : 1.0;                                     // screen exponent (+)
+    float se = (m.z > 0.0)
+    ? e * -sign(m.y)
+    : 1.0;                                     // spiral exponent
+    vec3 bg = vec3(0);                         // black background
 
     float aa = 3.0; // anti-aliasing
 
@@ -82,24 +89,34 @@ void main() {
         float g = min(abs(mc), 1.0 / abs(mc)); // gradient
         vec3 gold = vec3(1.0, 0.6, 0.0) * g * l;
         vec3 blue = vec3(0.3, 0.5, 0.9) * (1.0 - g);
-        vec3 rgb = max(gold, blue);
+        vec3 rgb = (gradient_count > 0)
+        ? texture(gradientTexture, g).rgb * l
+        : max(gold, blue);
 
-        float w = 0.1;                                      // line width
-        float d = 0.4;                                      // shadow depth
-        c = max(c, gm(rgb, mc, -t, w * bars[0], d, false)); // metallic
-        c = max(c, gm(rgb, abs(y / x) * sign(y), -t, w * bars[1], d,
-                      false)); // tangent
-        c = max(c, gm(rgb, (x * x) / (y * y) * sign(y), -t, w * bars[2], d,
-                      false)); // sqrt cotangent
-        c = max(c, gm(rgb, (x * x) + (y * y), t, w * bars[3], d,
-                      true)); // sqrt circles
+        float w = 0.1; // line width
+        float d = 0.4; // shadow depth
+        c = max(
+            c,
+            gm(rgb, mc, -t, w * bars[0], d, false)
+        );                                                                  // metallic
+        c = max(
+            c, gm(rgb, abs(y / x) * sign(y), -t, w * bars[1], d, false)
+        );                                                                  // tangent
+        c = max(
+            c,
+            gm(rgb, (x * x) / (y * y) * sign(y), -t, w * bars[2], d, false)
+        );                                                                  // sqrt cotangent
+        c = max(
+            c,
+            gm(rgb, (x * x) + (y * y), t, w * bars[3], d, true)
+        );                                                                  // sqrt circles
 
         c += rgb * ds(uv, se, t / TAU, px * 2.0 * bars[4], 2.0, 0.0); // spiral 1a
         c += rgb * ds(uv, se, t / TAU, px * 2.0 * bars[5], 2.0, PI);  // spiral 1b
         c +=
-        rgb * ds(uv, -se, t / TAU, px * 2.0 * bars[6], 2.0, 0.0); // spiral 2a
+        rgb * ds(uv, -se, t / TAU, px * 2.0 * bars[6], 2.0, 0.0);     // spiral 2a
         c += rgb * ds(uv, -se, t / TAU, px * 2.0 * bars[7], 2.0, PI); // spiral 2b
-        c = max(c, 0.0); // clear negative color
+        c = max(c, 0.0);                                              // clear negative color
 
         c += pow(max(1.0 - l, 0.0), 3.0 / z); // center glow
 

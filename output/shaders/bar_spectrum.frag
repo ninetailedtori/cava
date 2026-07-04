@@ -45,7 +45,7 @@ void main() {
         y = 1.0 / u_resolution.y;
     }
 
-    // draw the bar up to current height
+    // draw the bar up to current height 
     if (y > fragCoord.y) {
         // make some space between bars basen on settings
         if (x > (bar + 1) * (bar_size) - bar_spacing) {

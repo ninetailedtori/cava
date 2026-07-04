@@ -66,7 +66,8 @@ void main() {
     float da = abs(a - sweep_pos);
     da = min(da, 1.0 - da);
     float sweep = 1.0 - smoothstep(0.0, 0.08 + fwidth(a), da);
-
+    float discontinuity_mask = 1.0 - smoothstep(0.02, 0.08, abs(abs(a) - 3.14159));
+    sweep *= discontinuity_mask;
     float a_sample = fract(a + phase);
 
     float cell = a_sample * float(bc);

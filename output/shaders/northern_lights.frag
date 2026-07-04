@@ -14,6 +14,9 @@ uniform vec3 u_resolution; // window resolution, not used here
 uniform vec3 bg_color; // background color(r,g,b) (0.0 - 1.0), not used here
 uniform vec3 fg_color; // foreground color, not used here
 
+uniform int gradient_count;
+uniform sampler1D gradientTexture; // gradient colors
+
 void main()
 {
     // find which bar to use based on where we are on the x axis
