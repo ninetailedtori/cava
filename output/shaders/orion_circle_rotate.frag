@@ -135,7 +135,8 @@ void main() {
             color = clamp(color, 0, gradient_count - 2);
             float y_min = float(color) / (gradient_count - 1.0);
             float y_max = float(color + 1) / (gradient_count - 1.0);
-            col = normalize_C(amp, gradient_colors[color], gradient_colors[color + 1], y_min, y_max);
+            col =
+                normalize_C(amp, gradient_colors[color], gradient_colors[color + 1], y_min, y_max);
         }
     }
 
