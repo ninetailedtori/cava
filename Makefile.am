@@ -103,8 +103,3 @@ endif
 if SDL_GLSL
     cava_SOURCES += output/sdl_glsl.c output/sdl_glsl.h
 endif
-
-.PHONY: dev
-
-dev: $(bin_PROGRAMS)
-	./cava

@@ -34,7 +34,7 @@ const wchar_t **bar_heights[] = {bar_heights_bottom, bar_heights_top, bar_height
 
 // static struct colors the_color_redefinitions[MAX_COLOR_REDEFINITION];
 
-static void parse_color(const char *color_string, struct colors *color) {
+static void parse_color(char *color_string, struct colors *color) {
     if (color_string[0] == '#') {
         if (!can_change_color()) {
             cleanup_terminal_ncurses();

@@ -136,8 +136,8 @@ void main() {
 
     float core = smoothstep(core_radius - core_half_thickness - dr,
                             core_radius - core_half_thickness + dr, r) -
-    smoothstep(core_radius + core_half_thickness - dr,
-               core_radius + core_half_thickness + dr, r);
+                 smoothstep(core_radius + core_half_thickness - dr,
+                            core_radius + core_half_thickness + dr, r);
     float core_alpha = clamp(core, 0.0, 1.0) * core_act;
 
     if (ring_alpha == 0.0 && core_alpha == 0.0) {

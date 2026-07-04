@@ -27,7 +27,7 @@ struct colors *gradient_colors_sdl;
 struct colors fg_color = {0};
 struct colors bg_color = {0};
 
-static void parse_color(const char *color_string, struct colors *color) {
+static void parse_color(char *color_string, struct colors *color) {
     if (color_string[0] == '#') {
         sscanf(++color_string, "%02hx%02hx%02hx", &color->RGB[0], &color->RGB[1], &color->RGB[2]);
     }
