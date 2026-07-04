@@ -1,33 +1,35 @@
 ---
-name: build-and-test
+name: "build-and-test"
+
 on:
-  push:
-  pull_request:
-  workflow_dispatch:
+  push: null
+  pull_request: null
+  workflow_dispatch: null
+
 jobs:
   format:
-    runs-on: ubuntu-latest
+    runs-on: "ubuntu-latest"
     outputs:
-      files: ${{ steps.find-files.outputs.files }}
+      files: "${{ steps.find-files.outputs.files }}"
     steps:
-      - uses: actions/checkout@v4
+      - uses: "actions/checkout@v4"
         with:
-          token: ${{ secrets.FORMAT_TOKEN }}
-      - name: Install clang-format
-        run: sudo apt-get update && sudo apt-get install -y clang-format
-      - name: Find files to format
-        id: find-files
+          token: "${{ secrets.FORMAT_TOKEN }}"
+      - name: "Install clang-format"
+        run: "sudo apt-get update && sudo apt-get install -y clang-format"
+      - name: "Find files to format"
+        id: "find-files"
         run: |
           FILES=$(find . -type f \( -name "*.c" -o -name "*.h" -o -name "*.frag" -o -name "*.vert" \) -not -path "./third_party/*")
           echo "files=$FILES" >> $GITHUB_OUTPUT
-      - name: Format code with clang-format
+      - name: "Format code with clang-format"
         run: |
           echo "${{ steps.find-files.outputs.files }}" | xargs clang-format -i
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
+      - uses: "actions/checkout@v4"
+      - name: "Install dependencies"
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -46,121 +48,121 @@ jobs:
             squeezelite \
             pulseaudio \
             libpipewire-0.3-dev
-      - name: Generate configure
-        run: ./autogen.sh
-      - name: Run ./configure
-        run: ./configure
-      - name: Run make
-        run: make CFLAGS='-Werror'
-      - name: Run make distcheck
-        run: make distcheck
-      - name: Prepare tests
+      - name: "Generate configure"
+        run: "./autogen.sh"
+      - name: "Run ./configure"
+        run: "./configure"
+      - name: "Run make"
+        run: "make CFLAGS='-Werror'"
+      - name: "Run make distcheck"
+        run: "make distcheck"
+      - name: "Prepare tests"
         run: |
           pulseaudio -D
           squeezelite -o pulse -v -m 51:fb:32:f8:e6:9f -z
-      - name: run non zero test
-        run: ./cava -p example_files/test_configs/non_zero_test > /dev/null
-      - name: run pulseaudio test
-        run: ./cava -p example_files/test_configs/pulse_zero_test > /dev/null
-      - name: run fifo test
-        run: ./cava -p example_files/test_configs/fifo_zero_test > /dev/null
-      - name: run shmem test
-        run: ./cava -p example_files/test_configs/shmem_zero_test > /dev/null
-      - name: build cavacore test application
-        run: gcc -c -g cavacore_test.c
-      - name: link cavacore test application
-        run: gcc -o cavacore_test cavacore_test.o cava-cavacore.o -lm -lfftw3
-      - name: run cavacore test application
-        run: ./cavacore_test
+      - name: "run non zero test"
+        run: "./cava -p example_files/test_configs/non_zero_test > /dev/null"
+      - name: "run pulseaudio test"
+        run: "./cava -p example_files/test_configs/pulse_zero_test > /dev/null"
+      - name: "run fifo test"
+        run: "./cava -p example_files/test_configs/fifo_zero_test > /dev/null"
+      - name: "run shmem test"
+        run: "./cava -p example_files/test_configs/shmem_zero_test > /dev/null"
+      - name: "build cavacore test application"
+        run: "gcc -c -g cavacore_test.c"
+      - name: "link cavacore test application"
+        run: "gcc -o cavacore_test cavacore_test.o cava-cavacore.o -lm -lfftw3"
+      - name: "run cavacore test application"
+        run: "./cavacore_test"
   build-macos:
-    runs-on: macos-latest
+    runs-on: "macos-latest"
     steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
+      - uses: "actions/checkout@v4"
+      - name: "Install dependencies"
         run: |
           brew install fftw libtool automake portaudio iniparser sdl2
           ln -s /usr/local/bin/glibtoolize /usr/local/bin/libtoolize
-      - name: Generate configuresdl2
+      - name: "Generate configuresdl2"
         run: |
           PATH="/opt/homebrew/opt/libtool/libexec/gnubin:$PATH" ./autogen.sh
-      - name: Run ./configure
+      - name: "Run ./configure"
         run: |
           LDFLAGS="-L/opt/homebrew/lib" \
           CPPFLAGS="-I/opt/homebrew/include" \
           ./configure
-      - name: Run make
-        run: make CFLAGS='-Werror'
-      - name: run non zero test
-        run: ./cava -p example_files/test_configs/non_zero_test > /dev/null
+      - name: "Run make"
+        run: "make CFLAGS='-Werror'"
+      - name: "run non zero test"
+        run: "./cava -p example_files/test_configs/non_zero_test > /dev/null"
   build-windows:
-    runs-on: windows-latest
+    runs-on: "windows-latest"
     steps:
-      - uses: actions/checkout@v4
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v2
-      - name: Install vcpkg
+      - uses: "actions/checkout@v4"
+      - name: "Add msbuild to PATH"
+        uses: "microsoft/setup-msbuild@v2"
+      - name: "Install vcpkg"
         run: |
           git clone https://github.com/microsoft/vcpkg.git
           .\vcpkg\bootstrap-vcpkg.bat
-      - name: Set VCPKG_ROOT
+      - name: "Set VCPKG_ROOT"
         run: |
           echo "VCPKG_ROOT=$(pwd)\vcpkg" >> $env:GITHUB_ENV
-      - name: configure cmake with vcpkg
+      - name: "configure cmake with vcpkg"
         run: |
           cmake --preset vcpkg
-      - name: build
+      - name: "build"
         run: |
           cd build
           cmake --build . --config Release
-      - name: Install WiX Toolset
-        run: dotnet tool install --global wix --version 6.0.2
-      - name: Install WiX extensions
+      - name: "Install WiX Toolset"
+        run: "dotnet tool install --global wix --version 6.0.2"
+      - name: "Install WiX extensions"
         run: |
           wix extension add WixToolset.UI.wixext/6.0.2
           wix extension add WixToolset.Util.wixext/6.0.2
-      - name: Build MSI installer
+      - name: "Build MSI installer"
         run: |
           $versionLine = Select-String -Path autogen.sh -Pattern 'echo\s+([\d.]+)\s*>version'
           $cavaVersion = $versionLine.Matches[0].Groups[1].Value
           wix build -arch x64 cava_win\cava.wxs -d CavaVersion=$cavaVersion -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -o cava_win\cava_win_x64_install.msi
-      - name: Upload MSI artifact
-        uses: actions/upload-artifact@v4
+      - name: "Upload MSI artifact"
+        uses: "actions/upload-artifact@v4"
         with:
-          name: cava-msi
-          path: cava_win\cava_win_x64_install.msi
+          name: "cava-msi"
+          path: "cava_win\\cava_win_x64_install.msi"
   build-mingw:
-    runs-on: windows-latest
+    runs-on: "windows-latest"
     strategy:
       matrix:
-        msystem: [ucrt64, clang64]
+        msystem: ["ucrt64", "clang64"]
     defaults:
       run:
-        shell: msys2 {0}
+        shell: "msys2 {0}"
     steps:
-      - uses: actions/checkout@v4
-      - uses: msys2/setup-msys2@v2
+      - uses: "actions/checkout@v4"
+      - uses: "msys2/setup-msys2@v2"
         with:
-          msystem: ${{ matrix.msystem }}
-          pacboy: cc cmake fftw glew ninja SDL2
-      - name: Run cmake build
+          msystem: "${{ matrix.msystem }}"
+          pacboy: "cc cmake fftw glew ninja SDL2"
+      - name: "Run cmake build"
         run: |-
           cmake -B bin
           cmake --build bin
   commit:
     needs:
-      - format
-      - build-linux
-      - build-macos
-      - build-windows
-      - build-mingw
-    runs-on: ubuntu-latest
+      - "format"
+      - "build-linux"
+      - "build-macos"
+      - "build-windows"
+      - "build-mingw"
+    runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v4
+      - uses: "actions/checkout@v4"
         with:
-          token: ${{ secrets.FORMAT_TOKEN }}
-      - name: Commit and push if changed
+          token: "${{ secrets.FORMAT_TOKEN }}"
+      - name: "Commit and push if changed"
         env:
-          GITHUB_TOKEN: ${{ secrets.FORMAT_TOKEN }}
+          GITHUB_TOKEN: "${{ secrets.FORMAT_TOKEN }}"
         run: |-
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
