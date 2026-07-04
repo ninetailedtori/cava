@@ -28,7 +28,6 @@ void main()
     bar_r = bar_r * bar_r * 2;
 
     // set color
-    fragColor.r = fg_color.x * y * bar_r;
-    fragColor.g = fg_color.y * y * bar_r;
-    fragColor.b = fg_color.z * y * bar_r;
+    vec3 col = (gradient_count > 0) ? texture(gradientTexture, y).rgb : fg_color;
+    fragColor = vec4(col * y * bar_r, 1.0);
 }
