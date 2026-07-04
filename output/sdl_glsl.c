@@ -33,7 +33,8 @@ struct colors {
 
 static void parse_color(const char *color_string, struct colors *color) {
     if (color_string[0] == '#') {
-        sscanf(++color_string, "%02hx%02hx%02hx", &color->R, &color->G, &color->B);
+        // NOLINTNEXTLINE(cert-err34-c) - sscanf is appropriate here; format is already validated
+        sscanf(++color_string, "%02hhx%02hhx%02hhx", &color->R, &color->G, &color->B);
     }
 }
 
