@@ -4,7 +4,7 @@
 
 #include <ctype.h>
 #ifndef _WIN32
-#include <iniparser/iniparser.h>
+#include <iniparser.h>
 #endif
 #include <math.h>
 
