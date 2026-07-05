@@ -7,6 +7,7 @@
 #include <iniparser.h>
 #endif
 #include <math.h>
+#include <strings.h>
 
 #ifdef SNDIO
 #include <sndio.h>
@@ -219,119 +220,113 @@ char *get_cava_config_home(struct error_s *error) {
     return cava_config_home;
 }
 
-int validate_color(char *checkColor, void *params, void *err) {
-    struct config_params *p = (struct config_params *)params;
-    struct error_s *error = (struct error_s *)err;
-    int validColor = 0;
+static const struct {
+    const char *name;
+    int value;
+} color_table[] = {{"black", 0},   {"red", 1},  {"green", 2}, {"yellow", 3}, {"blue", 4},
+                   {"magenta", 5}, {"cyan", 6}, {"white", 7}, {NULL, -1}};
+
+static int lookup_color_table(const char *name) {
+    for (int i = 0; color_table[i].name; ++i) {
+        if (strcasecmp(name, color_table[i].name) == 0) {
+            return color_table[i].value;
+        }
+    }
+    return -1;
+}
+
+static bool validate_color(const char *checkColor, const struct config_params *p, void *err) {
+    struct error_s *error = err;
+
+    // Check hex format
     if (checkColor[0] == '#' && strlen(checkColor) == 7) {
         for (int i = 1; checkColor[i]; ++i) {
-            if (!isdigit(checkColor[i])) {
-                if (tolower(checkColor[i]) >= 'a' && tolower(checkColor[i]) <= 'f') {
-                    validColor = 1;
-                } else {
-                    validColor = 0;
-                    break;
-                }
-            } else {
-                validColor = 1;
+            if (!isxdigit((unsigned char)checkColor[i])) {
+                return false;
             }
         }
-    } else {
-        if (p->output == OUTPUT_SDL) {
-            write_errorf(error, "SDL only supports setting color in html format\n");
-            return 0;
-        }
-        if ((strcmp(checkColor, "black") == 0) || (strcmp(checkColor, "red") == 0) ||
-            (strcmp(checkColor, "green") == 0) || (strcmp(checkColor, "yellow") == 0) ||
-            (strcmp(checkColor, "blue") == 0) || (strcmp(checkColor, "magenta") == 0) ||
-            (strcmp(checkColor, "cyan") == 0) || (strcmp(checkColor, "white") == 0) ||
-            (strcmp(checkColor, "default") == 0))
-            validColor = 1;
+        return true;
     }
-    return validColor;
+
+    // Check named format
+    if (lookup_color_table(checkColor) != -1) {
+        if (p->output == OUTPUT_SDL) {
+            write_errorf(error, "SDL only supports setting color in html hex format\n");
+            return false;
+        }
+        return true;
+    }
+
+    return false;
 }
 
 static int parse_color(const char *color) {
-    static const struct {
-        const char *name;
-        int value;
-    } colors[] = {{"black", 0},   {"red", 1},  {"green", 2}, {"yellow", 3}, {"blue", 4},
-                  {"magenta", 5}, {"cyan", 6}, {"white", 7}, {NULL, -1}};
-
-    for (int i = 0; colors[i].name != NULL; i++) {
-        if (strcmp(color, colors[i].name) == 0)
-            return colors[i].value;
+    const int result = lookup_color_table(color);
+    if (result != -1) {
+        return result;
     }
 
-    if (color[0] == '#')
+    // Hex colors return 8
+    if (color[0] == '#') {
         return 8;
+    }
 
     return -1;
 }
 
-bool validate_colors(void *params, void *err) {
-    struct config_params *p = (struct config_params *)params;
-    struct error_s *error = (struct error_s *)err;
+static bool validate_gradient_colors(const char *label, const int count, char **colors,
+                                     const struct config_params *p, struct error_s *error) {
+    if (count < 0) {
+        write_errorf(error, "%s_count cannot be negative.\n", label);
+        return false;
+    }
+    if (count == 0) {
+        return true; // we'll make a fallback array of ["not set"]
+    }
 
-    // validate: color
+    for (int i = 0; i < count; i++) {
+        if (!validate_color(colors[i], p, error)) {
+            write_errorf(error,
+                         "%s color %d is invalid. It can be either one of the 7 "
+                         "named colors or a HTML color of the form '#xxxxxx'.\n",
+                         label, i + 1);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool validate_colors(void *params, void *err) {
+    struct config_params *p = params;
+    struct error_s *error = err;
+
+    // validate: foreground/background
     if (!validate_color(p->color, p, error)) {
         write_errorf(error, "The value for 'foreground' is invalid. It can be either one of the 7 "
                             "named colors or a HTML color of the form '#xxxxxx'.\n");
         return false;
     }
 
-    // validate: background color
     if (!validate_color(p->bcolor, p, error)) {
         write_errorf(error, "The value for 'background' is invalid. It can be either one of the 7 "
                             "named colors or a HTML color of the form '#xxxxxx'.\n");
         return false;
     }
 
-    if (p->gradient) {
-        if (p->gradient_count < 2) {
-            write_errorf(error, "\nAt least two colors must be given as gradient!\n");
-            return false;
-        }
-        if (p->gradient_count > MAX_GRADIENT_COUNT) {
-            write_errorf(error, "\nMaximum %d colors can be specified as gradient!\n",
-                         MAX_GRADIENT_COUNT);
-            return false;
-        }
-
-        for (int i = 0; i < p->gradient_count; i++) {
-            if (!validate_color(p->gradient_colors[i], p, error)) {
-                write_errorf(
-                    error,
-                    "Gradient color %d is invalid. It must be HTML color of the form '#xxxxxx'.\n",
-                    i + 1);
-                return false;
-            }
-        }
+    // validate: gradients
+    if (p->gradient &&
+        !validate_gradient_colors("gradient", p->gradient_count, p->gradient_colors, p, error)) {
+        return false;
     }
 
-    if (p->horizontal_gradient) {
-        if (p->horizontal_gradient_count < 2) {
-            write_errorf(error, "\nAt least two colors must be given as gradient!\n");
-            return false;
-        }
-        if (p->horizontal_gradient_count > MAX_GRADIENT_COUNT) {
-            write_errorf(error, "\nMaximum %d colors can be specified as gradient!\n",
-                         MAX_GRADIENT_COUNT);
-            return false;
-        }
-
-        for (int i = 0; i < p->horizontal_gradient_count; i++) {
-            if (!validate_color(p->horizontal_gradient_colors[i], p, error)) {
-                write_errorf(
-                    error,
-                    "Gradient color %d is invalid. It must be HTML color of the form '#xxxxxx'.\n",
-                    i + 1);
-                return false;
-            }
-        }
+    if (p->horizontal_gradient &&
+        !validate_gradient_colors("horizontal gradient", p->horizontal_gradient_count,
+                                  p->horizontal_gradient_colors, p, error)) {
+        return false;
     }
 
-    // In case color is not html format set bgcol and col to predefinedint values
+    // Parse named/hex colors to predefined ints
     p->col = parse_color(p->color);
     p->bgcol = parse_color(p->bcolor);
 
@@ -344,7 +339,7 @@ bool validate_colors(void *params, void *err) {
                  "clean && ./configure && make again\n",                                           \
                  x, y)
 
-bool validate_config(struct config_params *p, struct error_s *error) {
+static bool validate_config(struct config_params *p, struct error_s *error) {
     // validate: output method
     p->output = OUTPUT_NOT_SUPORTED;
     if (strcmp(outputMethod, "ncurses") == 0) {
@@ -601,7 +596,7 @@ bool validate_config(struct config_params *p, struct error_s *error) {
         return false;
     }
 
-    return validate_colors(p, error);
+    return true;
 }
 
 bool load_config(char configPath[PATH_MAX], struct config_params *p, struct error_s *error) {
@@ -783,6 +778,7 @@ bool load_config(char configPath[PATH_MAX], struct config_params *p, struct erro
         free(cava_config_home);
         free_config(p);
         free(themeFile);
+        free_colors(p);
         return result;
     }
 
@@ -1132,72 +1128,105 @@ bool load_config(char configPath[PATH_MAX], struct config_params *p, struct erro
     return result;
 }
 
+static bool load_color_array(const char *color_prefix, const int color_count, char ***color_array,
+                             struct error_s *error,
+#ifndef _WIN32
+                             const dictionary *ini
+#else
+                             const char *themeFile
+#endif
+) {
+    if (color_count == 0) {
+        *color_array = NULL;
+        return true;
+    }
+
+    char key[64];
+#ifdef _WIN32
+    char buf[256];
+#endif
+
+    *color_array = (char **)malloc(sizeof(char *) * color_count);
+    if (!*color_array) {
+        write_errorf(error, "malloc failed for color_array\n");
+        return false;
+    }
+
+    for (int i = 0; i < color_count; ++i) {
+        snprintf(key, sizeof(key), "color:%s_%d", color_prefix, i + 1);
+#ifndef _WIN32
+        const char *color_str = iniparser_getstring(ini, key, "not_set");
+        if (strcmp(color_str, "not_set") == 0) {
+            write_errorf(error, "%s not found in config, but count = %d.\n", key, color_count);
+            free(*color_array);
+            *color_array = NULL;
+            return false;
+        }
+        (*color_array)[i] = strdup(color_str);
+#else
+        GetPrivateProfileString("color", key, "not_set", buf, sizeof(buf), themeFile);
+        if (strcmp(buf, "not_set") == 0) {
+            write_errorf(error, "%s not found in config, but count = %d.\n", key, color_count);
+            free(*color_array);
+            *color_array = NULL;
+            return false;
+        }
+        (*color_array)[i] = strdup(buf);
+#endif
+    }
+
+    return true;
+}
+
 bool load_colors(char *themeFile, struct config_params *p, struct error_s *error) {
     free_colors(p);
-
-    p->gradient_colors = (char **)malloc(sizeof(char *) * MAX_GRADIENT_COUNT);
-    p->horizontal_gradient_colors = (char **)malloc(sizeof(char *) * MAX_GRADIENT_COUNT);
-
 #ifndef _WIN32
     dictionary *ini = iniparser_load(themeFile);
-    p->color = strdup(iniparser_getstring(ini, "color:foreground", "default"));
-    p->bcolor = strdup(iniparser_getstring(ini, "color:background", "default"));
+
+    p->gradient_count = iniparser_getint(ini, "color:gradient_count", 0);
+    p->horizontal_gradient_count = iniparser_getint(ini, "color:horizontal_gradient_count", 0);
+
+    if (p->gradient_count < 0 || p->gradient_count > MAX_GRADIENT_COUNT) {
+        write_errorf(error, "gradient_count must be between 0 and %d.\n", MAX_GRADIENT_COUNT);
+        return false;
+    }
+    if (p->horizontal_gradient_count < 0 || p->horizontal_gradient_count > MAX_GRADIENT_COUNT) {
+        write_errorf(error, "horizontal_gradient_count must be between 0 and %d.\n",
+                     MAX_GRADIENT_COUNT);
+        return false;
+    }
+
+    if (!load_color_array("gradient_color", p->gradient_count, &p->gradient_colors, error, ini))
+        return false;
+
+    if (!load_color_array("horizontal_gradient_color", p->horizontal_gradient_count,
+                          &p->horizontal_gradient_colors, error, ini))
+        return false;
 
     p->gradient = iniparser_getint(ini, "color:gradient", 0);
-
-    // Dynamic loop for gradient colors
-    char key[64];
-    for (int i = 0; i < MAX_GRADIENT_COUNT; ++i) {
-        snprintf(key, sizeof(key), "color:gradient_color_%d", i + 1);
-        p->gradient_colors[i] = strdup(iniparser_getstring(ini, key, "not_set"));
-    }
-
     p->horizontal_gradient = iniparser_getint(ini, "color:horizontal_gradient", 0);
 
-    // Dynamic loop for horizontal gradient colors
-    for (int i = 0; i < MAX_GRADIENT_COUNT; ++i) {
-        snprintf(key, sizeof(key), "color:horizontal_gradient_color_%d", i + 1);
-        p->horizontal_gradient_colors[i] = strdup(iniparser_getstring(ini, key, "not_set"));
-    }
+    p->color = strdup(iniparser_getstring(ini, "color:foreground", "default"));
+    p->bcolor = strdup(iniparser_getstring(ini, "color:background", "default"));
 
     iniparser_freedict(ini);
 #else
     GetPrivateProfileString("color", "foreground", "default", p->color, 9, themeFile);
     GetPrivateProfileString("color", "background", "default", p->bcolor, 9, themeFile);
 
-    for (int i = 0; i < 8; ++i) {
-        p->gradient_colors[i] = (char *)malloc(sizeof(char *) * 9);
-    }
-    for (int i = 0; i < MAX_GRADIENT_COUNT; ++i) {
-        p->horizontal_gradient_colors[i] = (char *)malloc(sizeof(char) * 9);
-        snprintf(key, sizeof(key), "horizontal_gradient_color_%d", i + 1);
-        GetPrivateProfileString("color", key, "not_set", p->horizontal_gradient_colors[i], 9,
-                                themeFile);
-    }
+    if (!load_color_array("gradient_color", p->gradient_count, &p->gradient_colors, error,
+                          themeFile))
+        return false;
+
+    if (!load_color_array("horizontal_gradient_color", p->horizontal_gradient_count,
+                          &p->horizontal_gradient_colors, error, themeFile))
+        return false;
+
     p->gradient = GetPrivateProfileInt("color", "gradient", 0, themeFile);
     p->horizontal_gradient = GetPrivateProfileInt("color", "horizontal_gradient", 0, themeFile);
 #endif
 
-    p->gradient_count = 0;
-    for (int i = 0; i < MAX_GRADIENT_COUNT; ++i) {
-        if (strcmp(p->gradient_colors[i], "not_set") != 0)
-            p->gradient_count++;
-        else
-            break;
-    }
-
-    p->horizontal_gradient_count = 0;
-    for (int i = 0; i < MAX_GRADIENT_COUNT; ++i) {
-        if (strcmp(p->horizontal_gradient_colors[i], "not_set") != 0)
-            p->horizontal_gradient_count++;
-        else
-            break;
-    }
-
-    const bool result = validate_colors(p, error);
-    if (!result)
-        free_colors(p);
-    return result;
+    return validate_colors(p, error);
 }
 
 bool get_themeFile(char configPath[PATH_MAX], struct config_params *p, char *cava_config_home,
