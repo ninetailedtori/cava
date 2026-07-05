@@ -1147,8 +1147,8 @@ bool load_config(char configPath[PATH_MAX], struct config_params *p, struct erro
 #define LOAD_COLOR_OR_NULL(prefix, num)                                                            \
     ({                                                                                             \
         snprintf(key, sizeof(key), "%s_%d", prefix, num);                                          \
-        GetPrivateProfileString("color", key, "not_set", color_str, sizeof(color_str), themefile); \
-        strcmp(color_str, "not_set") != 0 ? color_str : NULL;                                      \
+        GetPrivateProfileString("color", key, "not_set", buf, sizeof(buf), themeFile);             \
+        strcmp(buf, "not_set") != 0 ? buf : NULL;                                                  \
     })
 #endif
 
