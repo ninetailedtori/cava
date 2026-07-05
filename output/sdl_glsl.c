@@ -222,7 +222,7 @@ GLuint create_gradient_texture(const int gradient_count, char **gradient_color_s
     GLuint tex;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_1D, tex);
-    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, texture_width, 0, GL_RGB, GL_FLOAT, texture_data);
+    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB32F, texture_width, 0, GL_RGB, GL_FLOAT, texture_data);
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
