@@ -23,6 +23,8 @@
 
 #define NUMBER_OF_THEMES 2
 
+#define COLOR_SIZE 14
+
 #ifdef _WIN32
 #include "Shlwapi.h"
 #include "Windows.h"
@@ -160,6 +162,15 @@ void free_colors(struct config_params *p) {
                 p->horizontal_gradient_colors[i] = NULL;
             }
         free(p->horizontal_gradient_colors);
+    }
+
+    if (p->color) {
+        free(p->color);
+        p->color = NULL;
+    }
+    if (p->bcolor) {
+        free(p->bcolor);
+        p->bcolor = NULL;
     }
 
     p->gradient_colors = NULL;
@@ -745,11 +756,8 @@ bool load_config(char configPath[PATH_MAX], struct config_params *p, struct erro
     }
 #else
     outputMethod = malloc(sizeof(char) * 32);
-    p->color = malloc(sizeof(char) * 14);
-    p->bcolor = malloc(sizeof(char) * 14);
     p->audio_source = malloc(sizeof(char) * 129);
     p->theme = malloc(sizeof(char) * 64);
-
     xaxisScale = malloc(sizeof(char) * 32);
     channels = malloc(sizeof(char) * 32);
     monoOption = malloc(sizeof(char) * 32);
@@ -1128,7 +1136,23 @@ bool load_config(char configPath[PATH_MAX], struct config_params *p, struct erro
     return result;
 }
 
-static bool load_color_array(const char *color_prefix, const int color_count, char ***color_array,
+#ifndef WIN32
+#define LOAD_COLOR_OR_NULL(prefix, num)                                                            \
+    ({                                                                                             \
+        snprintf(key, sizeof(key), "color:%s_%d", prefix, num);                                    \
+        const char *val = iniparser_getstring(ini, key, "not_set");                                \
+        strcmp(val, "not_set") != 0 ? val : NULL;                                                  \
+    })
+#else
+#define LOAD_COLOR_OR_NULL(prefix, num)                                                            \
+    ({                                                                                             \
+        snprintf(key, sizeof(key), "%s_%d", prefix, num);                                          \
+        GetPrivateProfileString("color", key, "not_set", color_str, sizeof(color_str), themefile); \
+        strcmp(color_str, "not_set") != 0 ? color_str : NULL;                                      \
+    })
+#endif
+
+static bool load_color_array(const char *color_prefix, int *color_count, char ***color_array,
                              struct error_s *error,
 #ifndef _WIN32
                              const dictionary *ini
@@ -1136,95 +1160,92 @@ static bool load_color_array(const char *color_prefix, const int color_count, ch
                              const char *themeFile
 #endif
 ) {
-    if (color_count == 0) {
-        *color_array = NULL;
-        return true;
-    }
-
     char key[64];
 #ifdef _WIN32
     char buf[256];
 #endif
 
-    *color_array = (char **)malloc(sizeof(char *) * color_count);
+    const char *color_str = LOAD_COLOR_OR_NULL(color_prefix, 1);
+
+    if (!color_str) {
+        *color_array = NULL;
+        *color_count = 0;
+        return true;
+    }
+
+    *color_array = (char **)malloc(sizeof(char *) * MAX_GRADIENT_COUNT);
     if (!*color_array) {
         write_errorf(error, "malloc failed for color_array\n");
         return false;
     }
 
-    for (int i = 0; i < color_count; ++i) {
-        snprintf(key, sizeof(key), "color:%s_%d", color_prefix, i + 1);
-#ifndef _WIN32
-        const char *color_str = iniparser_getstring(ini, key, "not_set");
-        if (strcmp(color_str, "not_set") == 0) {
-            write_errorf(error, "%s not found in config, but count = %d.\n", key, color_count);
-            free(*color_array);
-            *color_array = NULL;
-            return false;
-        }
-        (*color_array)[i] = strdup(color_str);
-#else
-        GetPrivateProfileString("color", key, "not_set", buf, sizeof(buf), themeFile);
-        if (strcmp(buf, "not_set") == 0) {
-            write_errorf(error, "%s not found in config, but count = %d.\n", key, color_count);
-            free(*color_array);
-            *color_array = NULL;
-            return false;
-        }
-        (*color_array)[i] = strdup(buf);
-#endif
+    (*color_array)[0] = strdup(color_str);
+    int count = 1;
+
+    for (int i = 2; i <= MAX_GRADIENT_COUNT; ++i) {
+        color_str = LOAD_COLOR_OR_NULL(color_prefix, i);
+
+        if (!color_str)
+            break;
+
+        (*color_array)[count] = strdup(color_str);
+        ++count;
     }
 
+    *color_count = count;
     return true;
 }
 
 bool load_colors(char *themeFile, struct config_params *p, struct error_s *error) {
     free_colors(p);
+
+    p->color = malloc(sizeof(char) * COLOR_SIZE);
+    p->bcolor = malloc(sizeof(char) * COLOR_SIZE);
+
+    char fg[COLOR_SIZE], bg[COLOR_SIZE];
 #ifndef _WIN32
     dictionary *ini = iniparser_load(themeFile);
-
-    p->gradient_count = iniparser_getint(ini, "color:gradient_count", 0);
-    p->horizontal_gradient_count = iniparser_getint(ini, "color:horizontal_gradient_count", 0);
-
-    if (p->gradient_count < 0 || p->gradient_count > MAX_GRADIENT_COUNT) {
-        write_errorf(error, "gradient_count must be between 0 and %d.\n", MAX_GRADIENT_COUNT);
-        return false;
-    }
-    if (p->horizontal_gradient_count < 0 || p->horizontal_gradient_count > MAX_GRADIENT_COUNT) {
-        write_errorf(error, "horizontal_gradient_count must be between 0 and %d.\n",
-                     MAX_GRADIENT_COUNT);
-        return false;
-    }
-
-    if (!load_color_array("gradient_color", p->gradient_count, &p->gradient_colors, error, ini))
+    if (!load_color_array("gradient_color", &p->gradient_count, &p->gradient_colors, error, ini))
         return false;
 
-    if (!load_color_array("horizontal_gradient_color", p->horizontal_gradient_count,
+    if (!load_color_array("horizontal_gradient_color", &p->horizontal_gradient_count,
                           &p->horizontal_gradient_colors, error, ini))
         return false;
 
     p->gradient = iniparser_getint(ini, "color:gradient", 0);
     p->horizontal_gradient = iniparser_getint(ini, "color:horizontal_gradient", 0);
 
-    p->color = strdup(iniparser_getstring(ini, "color:foreground", "default"));
-    p->bcolor = strdup(iniparser_getstring(ini, "color:background", "default"));
+    snprintf(fg, COLOR_SIZE, "%s", iniparser_getstring(ini, "color:foreground", "default"));
+    snprintf(bg, COLOR_SIZE, "%s", iniparser_getstring(ini, "color:background", "default"));
 
     iniparser_freedict(ini);
 #else
-    GetPrivateProfileString("color", "foreground", "default", p->color, 9, themeFile);
-    GetPrivateProfileString("color", "background", "default", p->bcolor, 9, themeFile);
-
-    if (!load_color_array("gradient_color", p->gradient_count, &p->gradient_colors, error,
+    if (!load_color_array("gradient_color", &p->gradient_count, &p->gradient_colors, error,
                           themeFile))
         return false;
 
-    if (!load_color_array("horizontal_gradient_color", p->horizontal_gradient_count,
+    if (!load_color_array("horizontal_gradient_color", &p->horizontal_gradient_count,
                           &p->horizontal_gradient_colors, error, themeFile))
         return false;
 
     p->gradient = GetPrivateProfileInt("color", "gradient", 0, themeFile);
     p->horizontal_gradient = GetPrivateProfileInt("color", "horizontal_gradient", 0, themeFile);
+
+    GetPrivateProfileString("color", "foreground", "default", fg, COLOR_SIZE, themeFile);
+    GetPrivateProfileString("color", "background", "default", bg, COLOR_SIZE, themeFile);
 #endif
+
+    if (strcmp(fg, "default") == 0) {
+        snprintf(p->color, COLOR_SIZE, "%s", "#33ffff");
+    } else {
+        snprintf(p->color, COLOR_SIZE, "%s", fg);
+    }
+
+    if (strcmp(bg, "default") == 0) {
+        snprintf(p->bcolor, COLOR_SIZE, "%s", "#111111");
+    } else {
+        snprintf(p->bcolor, COLOR_SIZE, "%s", bg);
+    }
 
     return validate_colors(p, error);
 }
